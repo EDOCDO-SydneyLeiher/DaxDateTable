@@ -1,0 +1,74 @@
+Date = -- DEPARTMENT OF EDUCATION DATE TABLE
+VAR FirstFiscalMonth = 10  -- First month of the fiscal year
+VAR FirstDayOfWeek = 0    -- 0 = Sunday, 1 = Monday, ...
+VAR FirstReportingDate = MIN ( 'Example'[Date]) -- from date column in data table
+VAR LastReportingDate = MAX ( 'Example'[Date]) -- from date column in data table 
+VAR FirstFiscalYear =     -- Customizes the first fiscal year to use
+    YEAR ( FirstReportingDate )
+    + 1 * ( MONTH ( FirstReportingDate ) >= FirstFiscalMonth && FirstFiscalMonth > 1)
+VAR LastFiscalYear =      -- Customizes the last fiscal year to use
+    YEAR ( LastReportingDate )
+    + 1 * ( MONTH ( LastReportingDate ) >= FirstFiscalMonth && FirstFiscalMonth > 1)
+RETURN
+GENERATE (
+    VAR FirstDay =
+        DATE (
+            FirstFiscalYear - 1 * (FirstFiscalMonth > 1),
+            FirstFiscalMonth,
+            1
+        )
+ 
+    VAR LastDay =
+        DATE (
+            LastFiscalYear + 1 * (FirstFiscalMonth = 1),
+            FirstFiscalMonth, 1
+        ) - 1
+    RETURN
+        CALENDAR ( FirstDay, LastDay ),
+ 
+    VAR CurrentDate = [Date]
+    VAR Yr = YEAR ( CurrentDate )        -- Year Number
+    VAR Mn = MONTH ( CurrentDate )       -- Month Number (1-12)
+    VAR Mdn = DAY ( CurrentDate )        -- Day of Month
+    VAR DateKey = Yr*10000+Mn*100+Mdn
+    VAR Wd =                             -- Weekday Number (0 = Sunday, 1 = Monday, ...)
+        WEEKDAY ( CurrentDate + 7 - FirstDayOfWeek, 1 )
+    VAR WorkingDay =                     -- Working Day (1 = working, 0 = non-working)
+        ( WEEKDAY ( CurrentDate, 1 ) IN { 2, 3, 4, 5, 6 } )
+    VAR Fyr =                            -- Fiscal Year Number
+        Yr + 1 * ( FirstFiscalMonth > 1 && Mn >= FirstFiscalMonth )
+    VAR Fmn =                            -- Fiscal Month Number (1-12)
+        Mn - FirstFiscalMonth + 1 + 12 * (Mn < FirstFiscalMonth)
+    VAR Fqrn =                           -- Fiscal Quarter (string)
+        ROUNDUP ( Fmn / 3, 0 )
+    VAR Fmqn =
+        MOD ( FMn - 1, 3 ) + 1
+    VAR Fqr =                            -- Fiscal Quarter (string)
+        FORMAT ( Fqrn, "\Q0" )
+    VAR FirstDayOfYear =
+        DATE ( Fyr - 1 * (FirstFiscalMonth > 1), FirstFiscalMonth, 1 )
+    VAR Fydn =
+        SUMX (
+            CALENDAR ( FirstDayOfYear, CurrentDate ),
+            1 * ( MONTH ( [Date] ) <> 2 || DAY ( [Date] ) <> 29 )
+        )
+    RETURN ROW (
+        "DateKey", INT ( DateKey ),
+        "Sequential Day Number", INT ( [Date] ),
+        "Year Month", FORMAT ( CurrentDate, "mmm yyyy" ),
+        "Year Month Number", Yr * 12 + Mn - 1,
+        "Fiscal Year", "FY " & Fyr,
+        "Fiscal Year Number", Fyr,
+        "Fiscal Year Quarter", "F" & Fqr & "-" & Fyr,
+        "Fiscal Year Quarter Number", CONVERT ( Fyr * 4 + FQrn - 1, INTEGER ),
+        "Fiscal Quarter", "F" & Fqr,
+        "Month", FORMAT ( CurrentDate, "mmm" ),
+        "Fiscal Month Number", Fmn,
+        "Fiscal Month in Quarter Number",  Fmqn,
+        "Day of Week", FORMAT ( CurrentDate, "ddd" ),
+        "Day of Week Number", Wd,
+        "Day of Month Number", Mdn,
+        "Day of Fiscal Year Number", Fydn,
+        "Working Day", IF ( WorkingDay, "Working Day", "Non-Working Day" )
+    )
+)
